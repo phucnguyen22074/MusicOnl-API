@@ -1,13 +1,5 @@
 package com.example.demo.services;
 
-import java.util.Date;
-import java.util.List;
-
-import org.modelmapper.ModelMapper;
-import org.modelmapper.TypeToken;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
 import com.example.demo.dto.PlaylistDTO;
 import com.example.demo.entities.Playlists;
 import com.example.demo.entities.Playlistsongs;
@@ -17,104 +9,157 @@ import com.example.demo.entities.Users;
 import com.example.demo.repositories.PlaylistRepository;
 import com.example.demo.repositories.SongRepository;
 import com.example.demo.repositories.UserRepository;
+import org.modelmapper.ModelMapper;
+import org.modelmapper.TypeToken;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Date;
+import java.util.List;
 
 @Service
 public class PlaylistServiceImpl implements PlaylistService {
 
-	@Autowired
-	private PlaylistRepository playlistRepository;
+    @Autowired private PlaylistRepository playlistRepo;
+    @Autowired private UserRepository userRepo;
+    @Autowired private SongRepository songRepo;
+    @Autowired private ModelMapper mapper;
 
-	@Autowired
-	private SongRepository songRepository;
+    // ================= FIND ALL =================
+    @Override
+    public List<PlaylistDTO> findAll() {
+        return playlistRepo.findAll().stream()
+                .map(p -> mapper.map(p, PlaylistDTO  .class))
+                .toList();
+    }
 
-	@Autowired
-	private UserRepository userRepository;
+    // ================= FIND BY USER =================
+    @Override
+    public List<PlaylistDTO> findByUser(Integer userId) {
+        validateId(userId, "User ID");
+        return playlistRepo.findByUsers_UserId(userId).stream()
+                .map(p -> mapper.map(p, PlaylistDTO.class))
+                .toList();
+    }
 
-	@Autowired
-	private ModelMapper modelMapper;
+    // ================= ADD PLAYLIST =================
+    @Transactional
+    @Override
+    public PlaylistDTO addPlaylist(Integer userId, String name, String description) {
+        validateId(userId, "User ID");
+        validateName(name);
 
-	@Override
-	public List<PlaylistDTO> findAll() {
-		List<Playlists> list = playlistRepository.findAll();
-		return modelMapper.map(list, new TypeToken<List<PlaylistDTO>>(){}.getType());
-	}
-
-	@Override
-	public List<PlaylistDTO> findByUser(Integer userId) {
-		List<Playlists> list = playlistRepository.findByUsers_UserId(userId);
-		return modelMapper.map(list, new TypeToken<List<PlaylistDTO>>(){}.getType());
-	}
-
-	@Override
-	public PlaylistDTO addPlaylist(Integer userId, String name, String description) {
-		Users user = userRepository.findById(userId).orElse(null);
-		if (userId == null) return null;
-		
-		Playlists playlist = new Playlists();
+        Users user = getUserOrThrow(userId);
+        Playlists playlist = new Playlists();
         playlist.setName(name);
         playlist.setDescription(description);
         playlist.setUsers(user);
         playlist.setCreatedAt(new Date());
-        playlistRepository.save(playlist);
-        return modelMapper.map(playlist, PlaylistDTO.class);
-	}
 
-	@Override
-	public PlaylistDTO updatePlaylist(Integer id, String name, String description) {
-		Playlists playlist = playlistRepository.findById(id).orElse(null);
-		if(playlist == null) return null;
-		
-		if(name != null && !name.isBlank()) playlist.setName(name);
-		if(description != null && !description.isBlank()) playlist.setDescription(description);
-		
-		playlistRepository.save(playlist);
-		return modelMapper.map(playlist, PlaylistDTO.class);
-	}
+        playlistRepo.save(playlist);
+        return mapper.map(playlist, PlaylistDTO.class);
+    }
 
-	@Override
-	public boolean deletePlaylist(Integer id) {
-		Playlists playlist = playlistRepository.findById(id).orElse(null);
-		if(playlist == null) return false;
-		playlistRepository.delete(playlist);
-		return true;
-	}
+    // ================= UPDATE PLAYLIST =================
+    @Transactional
+    @Override
+    public PlaylistDTO updatePlaylist(Integer id, String name, String description) {
+        validateId(id, "Playlist ID");
+        Playlists playlist = getPlaylistOrThrow(id);
 
-	@Override
-	public boolean addSongToPlaylist(Integer playlistId, Integer songId) {
-		Playlists playlist = playlistRepository.findById(playlistId).orElse(null);
-		Songs song = songRepository.findById(songId).orElse(null);
-		if(playlist == null || song == null) return false;
-		
-		boolean exists = playlist.getPlaylistsongses().stream().anyMatch(ps -> ps.getSongs().getSongId().equals(songId));
-		
-		if (exists) return false;
-		Playlistsongs link = new Playlistsongs();
-	    link.setId(new PlaylistsongsId(playlistId, songId));
-	    link.setPlaylists(playlist);
-	    link.setSongs(song);
-	    link.setAddedAt(new Date());
+        if (name != null && !name.isBlank()) playlist.setName(name);
+        if (description != null && !description.isBlank()) playlist.setDescription(description);
 
-	    playlist.getPlaylistsongses().add(link);
-	    playlistRepository.save(playlist);
-	    return true;
-	}
+        playlistRepo.save(playlist);
+        return mapper.map(playlist, PlaylistDTO.class);
+    }
 
-	@Override
-	public boolean removeSongFromPlaylist(Integer playlistId, Integer songId) {
-		Playlists playlist = playlistRepository.findById(playlistId).orElse(null);
-	    if (playlist == null) return false;
+    // ================= DELETE PLAYLIST =================
+    @Transactional
+    @Override
+    public boolean deletePlaylist(Integer id) {
+        validateId(id, "Playlist ID");
+        return playlistRepo.findById(id)
+                .map(playlist -> {
+                    playlistRepo.delete(playlist);
+                    return true;
+                })
+                .orElse(false);
+    }
 
-	    // Tìm bản ghi trung gian
-	    Playlistsongs toRemove = playlist.getPlaylistsongses().stream()
-	            .filter(ps -> ps.getSongs().getSongId().equals(songId))
-	            .findFirst()
-	            .orElse(null);
+    // ================= ADD SONG TO PLAYLIST =================
+    @Transactional
+    @Override
+    public boolean addSongToPlaylist(Integer playlistId, Integer songId) {
+        validateId(playlistId, "Playlist ID");
+        validateId(songId, "Song ID");
 
-	    if (toRemove == null) return false;
+        Playlists playlist = getPlaylistOrThrow(playlistId);
+        Songs song = getSongOrThrow(songId);
 
-	    playlist.getPlaylistsongses().remove(toRemove);
-	    playlistRepository.save(playlist);
-	    return true;
-	}
+        boolean exists = playlist.getPlaylistsongses().stream()
+                .anyMatch(ps -> ps.getSongs().getSongId().equals(songId));
 
+        if (exists) return false;
+
+        Playlistsongs link = new Playlistsongs();
+        link.setId(new PlaylistsongsId(playlistId, songId));
+        link.setPlaylists(playlist);
+        link.setSongs(song);
+        link.setAddedAt(new Date());
+
+        playlist.getPlaylistsongses().add(link);
+        playlistRepo.save(playlist);
+        return true;
+    }
+
+    // ================= REMOVE SONG FROM PLAYLIST =================
+    @Transactional
+    @Override
+    public boolean removeSongFromPlaylist(Integer playlistId, Integer songId) {
+        validateId(playlistId, "Playlist ID");
+        validateId(songId, "Song ID");
+
+        Playlists playlist = getPlaylistOrThrow(playlistId);
+
+        return playlist.getPlaylistsongses().stream()
+                .filter(ps -> ps.getSongs().getSongId().equals(songId))
+                .findFirst()
+                .map(toRemove -> {
+                    playlist.getPlaylistsongses().remove(toRemove);
+                    playlistRepo.save(playlist);
+                    return true;
+                })
+                .orElse(false);
+    }
+
+    // ================= HELPER METHODS =================
+
+    private void validateId(Integer id, String fieldName) {
+        if (id == null) {
+            throw new IllegalArgumentException(fieldName + " không được để trống");
+        }
+    }
+
+    private void validateName(String name) {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("Tên playlist không được để trống");
+        }
+    }
+
+    private Users getUserOrThrow(Integer userId) {
+        return userRepo.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy User với ID: " + userId));
+    }
+
+    private Playlists getPlaylistOrThrow(Integer playlistId) {
+        return playlistRepo.findById(playlistId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy Playlist với ID: " + playlistId));
+    }
+
+    private Songs getSongOrThrow(Integer songId) {
+        return songRepo.findById(songId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy Song với ID: " + songId));
+    }
 }

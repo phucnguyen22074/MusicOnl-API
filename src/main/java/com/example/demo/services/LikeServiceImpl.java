@@ -1,13 +1,5 @@
 package com.example.demo.services;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-
-import org.modelmapper.ModelMapper;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
 import com.example.demo.dto.SongsDTO;
 import com.example.demo.entities.Likes;
 import com.example.demo.entities.LikesId;
@@ -16,68 +8,100 @@ import com.example.demo.entities.Users;
 import com.example.demo.repositories.LikesRepository;
 import com.example.demo.repositories.SongRepository;
 import com.example.demo.repositories.UserRepository;
+import org.modelmapper.ModelMapper;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Date;
+import java.util.List;
 
 @Service
-public class LikeServiceImpl implements LikeService{
-	
-	@Autowired
-    private LikesRepository likesRepository;
+public class LikeServiceImpl implements LikeService {
 
-    @Autowired
-    private UserRepository userRepository;
+    @Autowired private LikesRepository likesRepo;
+    @Autowired private UserRepository userRepo;
+    @Autowired private SongRepository songRepo;
+    @Autowired private ModelMapper mapper;
 
-    @Autowired
-    private SongRepository songRepository;
+    // ================= LIKE SONG =================
+    @Transactional
+    @Override
+    public boolean likeSong(Integer userId, Integer songId) {
+        validateIds(userId, songId);
 
-    @Autowired
-    private ModelMapper modelMapper;
+        if (likesRepo.existsByUsers_UserIdAndSongs_SongId(userId, songId)) {
+            return false; // Đã like rồi
+        }
 
-	@Override
-	public boolean likeSong(Integer userId, Integer songId) {
-		if(likesRepository.existsByUsers_UserIdAndSongs_SongId(userId, songId)) return false;
-		Users user = userRepository.findById(userId).orElse(null);
-		Songs song = songRepository.findById(songId).orElse(null);
-		if(user == null || song == null) return false;
-		
-		Likes like = new Likes();
-		like.setId(new LikesId(userId, songId));
+        Users user = getUserOrThrow(userId);
+        Songs song = getSongOrThrow(songId);
+
+        Likes like = new Likes();
+        like.setId(new LikesId(userId, songId));
         like.setUsers(user);
         like.setSongs(song);
         like.setLikedAt(new Date());
-        likesRepository.save(like);
+
+        likesRepo.save(like);
         return true;
-		
-	}
+    }
 
-	@Override
-	public boolean unlikeSong(Integer userId, Integer songId) {
-		if (!likesRepository.existsByUsers_UserIdAndSongs_SongId(userId, songId)) return false;
-        likesRepository.deleteByUsers_UserIdAndSongs_SongId(userId, songId);
-        return true;
-	}
+    // ================= UNLIKE SONG =================
+    @Transactional
+    @Override
+    public boolean unlikeSong(Integer userId, Integer songId) {
+        validateIds(userId, songId);
 
-	@Override
-	public boolean isLiked(Integer userId, Integer songId) {
-		return likesRepository.existsByUsers_UserIdAndSongs_SongId(userId, songId);
-	}
-
-	@Override
-	public int countLikesBySong(Integer songId) {
-		return likesRepository.findBySongs_SongId(songId).size();
-	}
-
-	@Override
-	public List<SongsDTO> getLikedSongsByUser(Integer userId) {
-		List<Likes> likes = likesRepository.findByUsers_UserId(userId);
-        List<SongsDTO> songs = new ArrayList<>();
-
-        for (Likes like : likes) {
-            if (like.getSongs() != null) {
-                songs.add(modelMapper.map(like.getSongs(), SongsDTO.class));
-            }
+        if (!likesRepo.existsByUsers_UserIdAndSongs_SongId(userId, songId)) {
+            return false; // Chưa like
         }
 
-        return songs;
-	}
+        likesRepo.deleteByUsers_UserIdAndSongs_SongId(userId, songId);
+        return true;
+    }
 
+    // ================= CHECK LIKED =================
+    @Override
+    public boolean isLiked(Integer userId, Integer songId) {
+        validateIds(userId, songId);
+        return likesRepo.existsByUsers_UserIdAndSongs_SongId(userId, songId);
+    }
+
+    // ================= COUNT LIKES =================
+    @Override
+    public int countLikesBySong(Integer songId) {
+        if (songId == null) throw new IllegalArgumentException("Song ID không được để trống");
+        return likesRepo.countBySongs_SongId(songId);
+    }
+
+    // ================= GET LIKED SONGS =================
+    @Override
+    public List<SongsDTO> getLikedSongsByUser(Integer userId) {
+        if (userId == null) throw new IllegalArgumentException("User ID không được để trống");
+
+        return likesRepo.findByUsers_UserId(userId).stream()
+                .map(like -> like.getSongs())
+                .filter(song -> song != null)
+                .map(song -> mapper.map(song, SongsDTO.class))
+                .toList();
+    }
+
+    // ================= HELPER METHODS =================
+
+    private void validateIds(Integer userId, Integer songId) {
+        if (userId == null || songId == null) {
+            throw new IllegalArgumentException("User ID và Song ID không được để trống");
+        }
+    }
+
+    private Users getUserOrThrow(Integer userId) {
+        return userRepo.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy User với ID: " + userId));
+    }
+
+    private Songs getSongOrThrow(Integer songId) {
+        return songRepo.findById(songId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy Song với ID: " + songId));
+    }
 }

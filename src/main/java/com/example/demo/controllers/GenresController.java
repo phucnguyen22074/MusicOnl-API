@@ -10,6 +10,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/genres")
+@CrossOrigin("*") // Thêm CORS nếu cần
 public class GenresController {
 
     @Autowired
@@ -21,33 +22,53 @@ public class GenresController {
         return ResponseEntity.ok(genresService.findAll());
     }
 
-    // ADD
+    // ADD - Sử dụng @RequestBody để nhận JSON
     @PostMapping("/add")
-    public ResponseEntity<?> addGenre(
-            @RequestParam("name") String name) {
-        GenresDTO dto = genresService.addGenre(name);
-        return ResponseEntity.ok(dto);
+    public ResponseEntity<?> addGenre(@RequestBody GenresDTO genreDTO) {
+        try {
+            GenresDTO dto = genresService.addGenre(
+                genreDTO.getName(), 
+                genreDTO.getColor(), 
+                genreDTO.getIcon()
+            );
+            return ResponseEntity.ok(dto);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error adding genre: " + e.getMessage());
+        }
     }
 
-    // UPDATE
+    // UPDATE - Sử dụng @RequestBody để nhận JSON
     @PutMapping("/update/{id}")
     public ResponseEntity<?> updateGenre(
             @PathVariable("id") Integer id,
-            @RequestParam(value = "name", required = false) String name) {
-        GenresDTO dto = genresService.updateGenre(id, name);
-        if (dto != null) {
-            return ResponseEntity.ok(dto);
+            @RequestBody GenresDTO genreDTO) {
+        try {
+            GenresDTO dto = genresService.updateGenre(
+                id, 
+                genreDTO.getName(), 
+                genreDTO.getColor(), 
+                genreDTO.getIcon()
+            );
+            if (dto != null) {
+                return ResponseEntity.ok(dto);
+            }
+            return ResponseEntity.status(404).body("Genre not found");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error updating genre: " + e.getMessage());
         }
-        return ResponseEntity.status(404).body("Genre not found");
     }
 
     // DELETE
     @DeleteMapping("/delete/{id}")
     public ResponseEntity<?> deleteGenre(@PathVariable("id") Integer id) {
-        boolean deleted = genresService.deleteGenre(id);
-        if (deleted) {
-            return ResponseEntity.ok("Genre deleted successfully");
+        try {
+            boolean deleted = genresService.deleteGenre(id);
+            if (deleted) {
+                return ResponseEntity.ok("Genre deleted successfully");
+            }
+            return ResponseEntity.status(404).body("Genre not found");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error deleting genre: " + e.getMessage());
         }
-        return ResponseEntity.status(404).body("Genre not found");
     }
 }

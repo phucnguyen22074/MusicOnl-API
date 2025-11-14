@@ -36,6 +36,7 @@ public class Songs implements java.io.Serializable {
 	private Date releaseDate;
 	private String imageUrl;
 	private String status;
+	private Integer listenCount;
 	private Date createdAt;
 	private Set<Artists> artists = new HashSet<Artists>(0);
 	private Set<History> histories = new HashSet<History>(0);
@@ -54,7 +55,7 @@ public class Songs implements java.io.Serializable {
 	}
 
 	public Songs(Albums albums, Users users, String title, Integer duration, String filePath, String lyrics,
-			Date releaseDate, String imageUrl, String status, Date createdAt, Set<Artists> artists,
+			Date releaseDate, String imageUrl, String status, Integer listenCount, Date createdAt, Set<Artists> artists,
 			Set<History> histories, Set<Playlistsongs> playlistsongses, Set<Genres> genreses, Set<Likes> likeses) {
 		this.albums = albums;
 		this.users = users;
@@ -65,6 +66,7 @@ public class Songs implements java.io.Serializable {
 		this.releaseDate = releaseDate;
 		this.imageUrl = imageUrl;
 		this.status = status;
+		this.listenCount = listenCount;
 		this.createdAt = createdAt;
 		this.artists = artists;
 		this.histories = histories;
@@ -167,6 +169,15 @@ public class Songs implements java.io.Serializable {
 
 	public void setStatus(String status) {
 		this.status = status;
+	}
+	
+	@Column(name = "listen_count")
+	public Integer getListenCount() {
+		return this.listenCount;
+	}
+
+	public void setListenCount(Integer listenCount) {
+		this.listenCount = listenCount;
 	}
 
 	@Temporal(TemporalType.TIMESTAMP)

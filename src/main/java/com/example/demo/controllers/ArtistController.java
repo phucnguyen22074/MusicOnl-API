@@ -1,23 +1,20 @@
 package com.example.demo.controllers;
 
+import com.example.demo.dto.ArtistRequestDTO;
 import com.example.demo.dto.ArtistsDTO;
-import com.example.demo.entities.Artists;
-import com.example.demo.repositories.ArtistRepository;
 import com.example.demo.services.ArtistService;
-
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.env.Environment;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.util.MimeTypeUtils;
-import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/artists")
@@ -25,48 +22,47 @@ public class ArtistController {
 
     @Autowired
     private ArtistService artistService;
-    
+
+    // ================= GET ALL WITH PAGINATION =================
     @GetMapping("/all")
-    public ResponseEntity<Iterable<ArtistsDTO>> findAllArtists() {
-        return ResponseEntity.ok(artistService.findAllArtist());
+    public ResponseEntity<List<ArtistsDTO>> getAllArtists(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return ResponseEntity.ok(artistService.findAllArtist(pageable));
     }
 
+    // ================= ADD ARTIST =================
     @PostMapping("/add")
-    public ResponseEntity<?> addArtist(
-            @RequestParam("name") String name,
-            @RequestParam(value = "bio", required = false) String bio,
-            @RequestParam("image") MultipartFile imageFile) {
-
-        String url = artistService.addArtist(name, bio, imageFile);
-        if (url != null) {
-            return ResponseEntity.ok("Artist created! Image URL: " + url);
-        } else {
-            return ResponseEntity.status(500).body("Failed to create artist");
-        }
-    }
-    
-    @PutMapping("/update/{id}")
-    public ResponseEntity<?> updateArtist(
-            @PathVariable("id") Integer id,
-            @RequestParam(value = "name", required = false) String name,
-            @RequestParam(value = "bio", required = false) String bio,
+    public ResponseEntity<ArtistsDTO> addArtist(
+            @Valid @ModelAttribute ArtistRequestDTO request,
             @RequestParam(value = "image", required = false) MultipartFile imageFile) {
 
-        String url = artistService.updateArtist(id, name, bio, imageFile);
-        if (url != null) {
-            return ResponseEntity.ok("Artist updated! Image URL: " + url);
-        } else {
-            return ResponseEntity.status(404).body("Artist not found or update failed");
+        if (imageFile == null || imageFile.isEmpty()) {
+            throw new IllegalArgumentException("File ảnh không được để trống");
         }
+
+        ArtistsDTO artist = artistService.addArtist(request.getName(), request.getBio(), imageFile);
+        return ResponseEntity.status(HttpStatus.CREATED).body(artist);
     }
 
+    // ================= UPDATE ARTIST =================
+    @PutMapping("/update/{id}")
+    public ResponseEntity<ArtistsDTO> updateArtist(
+            @PathVariable Integer id,
+            @Valid @ModelAttribute ArtistRequestDTO request,
+            @RequestParam(value = "image", required = false) MultipartFile imageFile) {
+
+        ArtistsDTO updated = artistService.updateArtist(id, request.getName(), request.getBio(), imageFile);
+        return ResponseEntity.ok(updated);
+    }
+
+    // ================= DELETE ARTIST =================
     @DeleteMapping("/delete/{id}")
-    public ResponseEntity<?> deleteArtist(@PathVariable("id") Integer id) {
+    public ResponseEntity<Map<String, String>> deleteArtist(@PathVariable Integer id) {
         boolean deleted = artistService.deleteArtist(id);
-        if (deleted) {
-            return ResponseEntity.ok("Artist deleted successfully");
-        } else {
-            return ResponseEntity.status(404).body("Artist not found or delete failed");
-        }
+        Map<String, String> response = new HashMap<>();
+        response.put("message", deleted ? "Artist deleted successfully!" : "Artist not found!");
+        return ResponseEntity.ok(response);
     }
 }

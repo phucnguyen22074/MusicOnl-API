@@ -23,4 +23,6 @@ public interface SongsService {
 	public List<SongsDTO> findByArtist(Integer artistId);
 
 	public List<SongsDTO> findByTitleContaining(String keyword);
+	
+	public void incrementListenCount(Integer songId);
 }

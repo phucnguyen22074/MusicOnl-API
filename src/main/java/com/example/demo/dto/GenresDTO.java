@@ -10,6 +10,8 @@ public class GenresDTO {
     private String name;
     private String description;
     private Date createdAt;
+    private String color;
+	private String icon;
 
     // Getter & Setter
 //    public Integer getGenreId() {

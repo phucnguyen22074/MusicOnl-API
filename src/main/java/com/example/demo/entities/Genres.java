@@ -1,5 +1,5 @@
 package com.example.demo.entities;
-// Generated 17:38:03 10 thg 9, 2025 by Hibernate Tools 4.3.6.Final
+// Generated 12:13:59 3 thg 11, 2025 by Hibernate Tools 4.3.6.Final
 
 import java.util.HashSet;
 import java.util.Set;
@@ -22,6 +22,8 @@ public class Genres implements java.io.Serializable {
 
 	private Integer genreId;
 	private String name;
+	private String color;
+	private String icon;
 	private Set<Songs> songses = new HashSet<Songs>(0);
 
 	public Genres() {
@@ -31,8 +33,10 @@ public class Genres implements java.io.Serializable {
 		this.name = name;
 	}
 
-	public Genres(String name, Set<Songs> songses) {
+	public Genres(String name, String color, String icon, Set<Songs> songses) {
 		this.name = name;
+		this.color = color;
+		this.icon = icon;
 		this.songses = songses;
 	}
 
@@ -55,6 +59,24 @@ public class Genres implements java.io.Serializable {
 
 	public void setName(String name) {
 		this.name = name;
+	}
+
+	@Column(name = "color", length = 50)
+	public String getColor() {
+		return this.color;
+	}
+
+	public void setColor(String color) {
+		this.color = color;
+	}
+
+	@Column(name = "icon")
+	public String getIcon() {
+		return this.icon;
+	}
+
+	public void setIcon(String icon) {
+		this.icon = icon;
 	}
 
 	@ManyToMany(fetch = FetchType.LAZY, mappedBy = "genreses")

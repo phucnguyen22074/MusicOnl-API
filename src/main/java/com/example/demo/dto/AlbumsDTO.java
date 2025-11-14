@@ -1,6 +1,7 @@
 package com.example.demo.dto;
 
 import java.util.Date;
+import java.util.HashSet;
 import java.util.Set;
 
 import lombok.Data;
@@ -15,5 +16,5 @@ public class AlbumsDTO {
     private Integer artistId;
     private String artistName;
 
-    private Set<SongsDTO> songs; 
+    private Set<SongsDTO> songs = new HashSet<>();
 }

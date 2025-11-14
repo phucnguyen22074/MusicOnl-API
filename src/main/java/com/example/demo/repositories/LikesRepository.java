@@ -14,4 +14,5 @@ public interface LikesRepository extends JpaRepository<Likes, LikesId>{
 	public List<Likes> findBySongs_SongId(Integer songId);
 	public boolean existsByUsers_UserIdAndSongs_SongId(Integer userId, Integer songId);
 	public void deleteByUsers_UserIdAndSongs_SongId(Integer userId, Integer songId);
+	public int countBySongs_SongId(Integer songId);
 }

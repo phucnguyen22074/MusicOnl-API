@@ -130,7 +130,9 @@ public class SecurityConfiguration {
                     "/api/audio/**",
                     "/api/audio-storage/**",
                     "/api/genres/**",
-                    "/api/likes/**"
+                    "/api/likes/**",
+                    "/api/albums/**",
+                    "/api/auth/find/**"
                 ).permitAll()
 
                 // API endpoints yêu cầu JWT
